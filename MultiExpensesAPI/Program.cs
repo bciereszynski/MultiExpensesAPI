@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MultiExpensesAPI.Data;
-using MultiExpensesAPI.Data.Services;
+using MultiExpensesAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

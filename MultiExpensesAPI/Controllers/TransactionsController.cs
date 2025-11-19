@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using MultiExpensesAPI.Data.Services;
 using MultiExpensesAPI.Dtos;
+using MultiExpensesAPI.Services;
 
 namespace MultiExpensesAPI.Controllers
 {
