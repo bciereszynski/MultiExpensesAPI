@@ -1,81 +1,59 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MultiExpensesAPI.Data;
+using MultiExpensesAPI.Data.Services;
 using MultiExpensesAPI.Dtos;
-using MultiExpensesAPI.Models;
 
 namespace MultiExpensesAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TransactionsController(AppDbContext context) : ControllerBase
+    public class TransactionsController(ITransactionsService service) : ControllerBase
     {
         [HttpGet("All")]
         public IActionResult GetAll()
         {
-            var allTransactions = context.Transactions.ToList();
+            var allTransactions = service.GetAll();
             return Ok(allTransactions);
         }
 
         [HttpGet("Details/{id}")]
         public IActionResult GetById(int id)
         {
-            var transactionDb = context.Transactions.FirstOrDefault(n => n.Id == id);
-            if (transactionDb == null)
+            var foundTransaction = service.GetById(id);
+            if (foundTransaction == null)
             {
                 return NotFound();
             }
-
-            return Ok(transactionDb);
+            return Ok(foundTransaction);
         }
 
         [HttpPut("Update/{id}")]
         public IActionResult Update(int id, [FromBody] PostTransactionDto transactionDto)
         {
-            var transactionDb = context.Transactions.FirstOrDefault(n => n.Id == id);
-            if (transactionDb == null)
+            var updatedTransaction = service.Update(id, transactionDto);
+            if (updatedTransaction == null)
             {
                 return NotFound();
             }
-
-            transactionDb.Type = transactionDto.Type;
-            transactionDb.Amount = transactionDto.Amount;
-            transactionDb.Category = transactionDto.Category;
-            transactionDb.LastUpdatedAt = DateTime.UtcNow;
-
-            context.Transactions.Update(transactionDb);
-            context.SaveChanges();
-            return Ok(transactionDb);
+            return Ok(updatedTransaction);
         }
 
         [HttpDelete("Delete/{id}")]
         public IActionResult Delete(int id)
         {
-            var transactionDb = context.Transactions.FirstOrDefault(n => n.Id == id);
-            if (transactionDb == null)
+            var result = service.Delete(id);
+            if (!result)
             {
                 return NotFound();
             }
-            context.Transactions.Remove(transactionDb);
-            context.SaveChanges();
             return Ok();
         }
 
         [HttpPost("Create")]
         public IActionResult Create([FromBody] PostTransactionDto transactionDto)
         {
-            var newTransaction = new Transaction
-            {
-                Type = transactionDto.Type,
-                Amount = transactionDto.Amount,
-                Category = transactionDto.Category,
-                Description = transactionDto.Description,
-                CreatedAt = DateTime.UtcNow,
-                LastUpdatedAt = DateTime.UtcNow
-            };
-            context.Transactions.Add(newTransaction);
-            context.SaveChanges();
+            var newTransaction = service.Add(transactionDto);
 
-            return Ok();
+            return Ok(newTransaction);
         }
     }
 }
