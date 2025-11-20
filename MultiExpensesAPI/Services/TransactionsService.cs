@@ -32,7 +32,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             Amount = transactionDto.Amount,
             Category = transactionDto.Category,
             Description = transactionDto.Description,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = transactionDto.CreatedAt,
             LastUpdatedAt = DateTime.UtcNow
         };
 
