@@ -1,4 +1,5 @@
-﻿using MultiExpensesAPI.Data;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using MultiExpensesAPI.Data;
 using MultiExpensesAPI.Dtos;
 
 using MultiExpensesAPI.Models;
@@ -51,6 +52,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             transactionDb.Type = transaction.Type;
             transactionDb.Amount = transaction.Amount;
             transactionDb.Category = transaction.Category;
+            transactionDb.CreatedAt = transaction.CreatedAt;
             transactionDb.LastUpdatedAt = DateTime.UtcNow;
 
             context.Transactions.Update(transactionDb);
