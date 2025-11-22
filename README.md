@@ -39,9 +39,6 @@ Useful REST API for recording and managing expense/income transactions for group
 
 5. API will be available at `https://localhost:{port}`. Swagger UI is available in Development at `https://localhost:{port}/swagger`.
 
-## Important implementation notes
-- CORS: A permissive policy named `AllowAll` is registered and applied in development. See `Program.cs` for details.
-
 ## Endpoints
 Base route: `api/Transactions`
 
