@@ -1,33 +1,35 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using MultiExpensesAPI.Data;
+﻿using Microsoft.EntityFrameworkCore;
 using MultiExpensesAPI.Dtos;
-
 using MultiExpensesAPI.Models;
+using MultiExpensesAPI.Data;
 
 namespace MultiExpensesAPI.Services;
+
 public interface ITransactionsService
 {
-    List<Transaction> GetAll();
-    Transaction? GetById(int id);
-    Transaction Add(PostTransactionDto transaction);
-    Transaction? Update(int id, PostTransactionDto transaction);
-    bool Delete(int id);
-
+    Task<List<Transaction>> GetAllAsync();
+    Task<Transaction?> GetByIdAsync(int id);
+    Task<Transaction> AddAsync(PostTransactionDto transaction);
+    Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction);
+    Task<bool> DeleteAsync(int id);
 }
+
 public class TransactionsService(AppDbContext context) : ITransactionsService
 {
-    public List<Transaction> GetAll()
-    {
-        return context.Transactions.ToList();
 
-    }
-    public Transaction? GetById(int id)
+    public async Task<List<Transaction>> GetAllAsync()
     {
-        return context.Transactions.FirstOrDefault(n => n.Id == id);
+        return await context.Transactions.ToListAsync();
     }
-    public Transaction Add(PostTransactionDto transactionDto)
+
+    public async Task<Transaction?> GetByIdAsync(int id)
     {
-        var newTransaction = new Transaction()
+        return await context.Transactions.FirstOrDefaultAsync(n => n.Id == id);
+    }
+
+    public async Task<Transaction> AddAsync(PostTransactionDto transactionDto)
+    {
+        var newTransaction = new Transaction
         {
             Type = transactionDto.Type,
             Amount = transactionDto.Amount,
@@ -37,40 +39,43 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             LastUpdatedAt = DateTime.UtcNow
         };
 
-        context.Transactions.Add(newTransaction);
-        context.SaveChanges();
+        await context.Transactions.AddAsync(newTransaction);
+        await context.SaveChangesAsync();
 
         return newTransaction;
-
     }
-    public Transaction? Update(int id, PostTransactionDto transaction)
+
+    public async Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction)
     {
-        var transactionDb = context.Transactions.FirstOrDefault(n => n.Id == id);
-        if (transactionDb != null)
+        var transactionDb = await context.Transactions.FirstOrDefaultAsync(n => n.Id == id);
+        if (transactionDb == null)
         {
-
-            transactionDb.Type = transaction.Type;
-            transactionDb.Amount = transaction.Amount;
-            transactionDb.Category = transaction.Category;
-            transactionDb.CreatedAt = transaction.CreatedAt;
-            transactionDb.LastUpdatedAt = DateTime.UtcNow;
-
-            context.Transactions.Update(transactionDb);
-            context.SaveChanges();
+            return null;
         }
+
+        transactionDb.Type = transaction.Type;
+        transactionDb.Amount = transaction.Amount;
+        transactionDb.Category = transaction.Category;
+        transactionDb.Description = transaction.Description;
+        transactionDb.CreatedAt = transaction.CreatedAt;
+        transactionDb.LastUpdatedAt = DateTime.UtcNow;
+
+        context.Transactions.Update(transactionDb);
+        await context.SaveChangesAsync();
 
         return transactionDb;
     }
 
-    public bool Delete(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
-        var transactionDb = context.Transactions.FirstOrDefault(n => n.Id == id);
-        if (transactionDb != null)
+        var transactionDb = await context.Transactions.FirstOrDefaultAsync(n => n.Id == id);
+        if (transactionDb == null)
         {
-            context.Transactions.Remove(transactionDb);
-            context.SaveChanges();
-            return true;
+            return false;
         }
-        return false;
+
+        context.Transactions.Remove(transactionDb);
+        await context.SaveChangesAsync();
+        return true;
     }
 }

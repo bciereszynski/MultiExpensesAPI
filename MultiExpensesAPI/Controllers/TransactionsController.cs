@@ -3,59 +3,62 @@ using Microsoft.AspNetCore.Mvc;
 using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Services;
 
-namespace MultiExpensesAPI.Controllers
+namespace MultiExpensesAPI.Controllers;
+[Route("api/[controller]")]
+[ApiController]
+[EnableCors("AllowAll")]
+public class TransactionsController(ITransactionsService service) : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [EnableCors("AllowAll")]
-    public class TransactionsController(ITransactionsService service) : ControllerBase
+    // GET api/Transactions
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        [HttpGet("All")]
-        public IActionResult GetAll()
-        {
-            var allTransactions = service.GetAll();
-            return Ok(allTransactions);
-        }
+        var allTransactions = await service.GetAllAsync();
+        return Ok(allTransactions);
+    }
 
-        [HttpGet("Details/{id}")]
-        public IActionResult GetById(int id)
+    // GET api/Transactions/{id}
+    [HttpGet("{id}", Name = "GetTransactionById")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var foundTransaction = await service.GetByIdAsync(id);
+        if (foundTransaction == null)
         {
-            var foundTransaction = service.GetById(id);
-            if (foundTransaction == null)
-            {
-                return NotFound();
-            }
-            return Ok(foundTransaction);
+            return NotFound();
         }
+        return Ok(foundTransaction);
+    }
 
-        [HttpPut("Update/{id}")]
-        public IActionResult Update(int id, [FromBody] PostTransactionDto transactionDto)
+    // POST api/Transactions
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] PostTransactionDto transactionDto)
+    {
+        var newTransaction = await service.AddAsync(transactionDto);
+
+        return CreatedAtRoute("GetTransactionById", new { id = newTransaction.Id }, newTransaction);
+    }
+
+    // PUT api/Transactions/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] PostTransactionDto transactionDto)
+    {
+        var updatedTransaction = await service.UpdateAsync(id, transactionDto);
+        if (updatedTransaction == null)
         {
-            var updatedTransaction = service.Update(id, transactionDto);
-            if (updatedTransaction == null)
-            {
-                return NotFound();
-            }
-            return Ok(updatedTransaction);
+            return NotFound();
         }
+        return Ok(updatedTransaction);
+    }
 
-        [HttpDelete("Delete/{id}")]
-        public IActionResult Delete(int id)
+    // DELETE api/Transactions/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await service.DeleteAsync(id);
+        if (!result)
         {
-            var result = service.Delete(id);
-            if (!result)
-            {
-                return NotFound();
-            }
-            return Ok();
+            return NotFound();
         }
-
-        [HttpPost("Create")]
-        public IActionResult Create([FromBody] PostTransactionDto transactionDto)
-        {
-            var newTransaction = service.Add(transactionDto);
-
-            return Ok(newTransaction);
-        }
+        return NoContent();
     }
 }
