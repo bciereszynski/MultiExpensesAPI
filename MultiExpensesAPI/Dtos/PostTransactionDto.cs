@@ -1,18 +1,5 @@
-﻿using MultiExpensesAPI.Models.Base;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace MultiExpensesAPI.Dtos
-{
-    public class PostTransactionDto
-    {
-        public required string Type { get; set; }
+namespace MultiExpensesAPI.Dtos;
 
-        public double Amount { get; set; }
-
-        public required string Category { get; set; }
-
-        public string? Description { get; set; }
-
-        public DateTime CreatedAt { get; set; }
-    }
-
-}
+public record PostTransactionDto(string Type, double Amount, string Category, string? Description, DateTime CreatedAt);
