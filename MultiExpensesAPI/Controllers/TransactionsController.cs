@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Cors;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Services;
@@ -7,6 +8,7 @@ namespace MultiExpensesAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [EnableCors("AllowAll")]
+[Authorize]
 public class TransactionsController(ITransactionsService service) : ControllerBase
 {
     // GET api/Transactions
