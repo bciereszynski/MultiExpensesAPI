@@ -25,6 +25,7 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     [HttpGet("{id}", Name = "GetTransactionById")]
     public async Task<IActionResult> GetById(int id)
     {
+        // TODO - allow only for people in the group
         var foundTransaction = await service.GetByIdAsync(id);
         if (foundTransaction == null)
         {

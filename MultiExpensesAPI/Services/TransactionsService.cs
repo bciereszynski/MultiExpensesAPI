@@ -2,7 +2,6 @@
 using MultiExpensesAPI.Data;
 using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Models;
-using System.Security.Claims;
 
 namespace MultiExpensesAPI.Services;
 
@@ -30,6 +29,12 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
 
     public async Task<Transaction> AddAsync(PostTransactionDto transactionDto, int userId)
     {
+        var groupExists = await context.Groups.AnyAsync(g => g.Id == transactionDto.GroupId);
+        if (!groupExists)
+        {
+            throw new ArgumentException("Group not found", nameof(transactionDto.GroupId));
+        }
+
         var newTransaction = new Transaction
         {
             Type = transactionDto.Type,
@@ -38,7 +43,8 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             Description = transactionDto.Description,
             CreatedAt = transactionDto.CreatedAt,
             LastUpdatedAt = DateTime.UtcNow,
-            UserId = userId
+            UserId = userId,
+            GroupId = transactionDto.GroupId
         };
 
         await context.Transactions.AddAsync(newTransaction);
@@ -55,12 +61,19 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             return null;
         }
 
+        var groupExists = await context.Groups.AnyAsync(g => g.Id == transaction.GroupId);
+        if (!groupExists)
+        {
+            throw new ArgumentException("Group not found", nameof(transaction.GroupId));
+        }
+
         transactionDb.Type = transaction.Type;
         transactionDb.Amount = transaction.Amount;
         transactionDb.Category = transaction.Category;
         transactionDb.Description = transaction.Description;
         transactionDb.CreatedAt = transaction.CreatedAt;
         transactionDb.LastUpdatedAt = DateTime.UtcNow;
+        transactionDb.GroupId = transaction.GroupId;
 
         context.Transactions.Update(transactionDb);
         await context.SaveChangesAsync();

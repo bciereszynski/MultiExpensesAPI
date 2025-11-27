@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
         modelBuilder.Entity<User>()
             .HasMany(u => u.Groups)
             .WithMany(g => g.Members)
@@ -28,6 +29,6 @@ public class AppDbContext : DbContext
             .HasOne(t => t.Group)
             .WithMany(g => g.Transactions)
             .HasForeignKey(t => t.GroupId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
