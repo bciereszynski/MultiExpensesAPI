@@ -14,4 +14,20 @@ public class AppDbContext : DbContext
 
     public DbSet<Transaction> Transactions { get; set; }
 
+    public DbSet<Group> Groups { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Groups)
+            .WithMany(g => g.Members)
+            .UsingEntity(j => j.ToTable("UserGroups"));
+
+        modelBuilder.Entity<Transaction>()
+            .HasOne(t => t.Group)
+            .WithMany(g => g.Transactions)
+            .HasForeignKey(t => t.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
 }

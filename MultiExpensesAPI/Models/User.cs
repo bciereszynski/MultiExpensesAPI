@@ -8,5 +8,7 @@ namespace MultiExpensesAPI.Models
         public required string Password { get; set; }
 
         public virtual ICollection<Transaction>? Transactions { get; set; }
+        
+        public virtual ICollection<Group> Groups { get; set; } = new List<Group>();
     }
 }
