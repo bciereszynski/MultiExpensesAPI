@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Services;
+using System.Security.Claims;
 
 namespace MultiExpensesAPI.Controllers;
 [Route("api/[controller]")]
@@ -15,7 +16,8 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var allTransactions = await service.GetAllAsync();
+        int userId = GetUserIdFromClaims();
+        var allTransactions = await service.GetAllAsync(userId);
         return Ok(allTransactions);
     }
 
@@ -35,7 +37,9 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PostTransactionDto transactionDto)
     {
-        var newTransaction = await service.AddAsync(transactionDto);
+       
+        int userId = GetUserIdFromClaims();
+        var newTransaction = await service.AddAsync(transactionDto, userId);
 
         return CreatedAtRoute("GetTransactionById", new { id = newTransaction.Id }, newTransaction);
     }
@@ -62,5 +66,15 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
             return NotFound();
         }
         return NoContent();
+    }
+
+    private int GetUserIdFromClaims()
+    {
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
+        {
+            throw new Exception("User ID claim not found.");
+        }
+        return int.Parse(userIdClaim.Value);
     }
 }

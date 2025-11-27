@@ -1,15 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using MultiExpensesAPI.Data;
 using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Models;
-using MultiExpensesAPI.Data;
+using System.Security.Claims;
 
 namespace MultiExpensesAPI.Services;
 
 public interface ITransactionsService
 {
-    Task<List<Transaction>> GetAllAsync();
+    Task<List<Transaction>> GetAllAsync(int userId);
     Task<Transaction?> GetByIdAsync(int id);
-    Task<Transaction> AddAsync(PostTransactionDto transaction);
+    Task<Transaction> AddAsync(PostTransactionDto transaction, int userId);
     Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction);
     Task<bool> DeleteAsync(int id);
 }
@@ -17,9 +18,9 @@ public interface ITransactionsService
 public class TransactionsService(AppDbContext context) : ITransactionsService
 {
 
-    public async Task<List<Transaction>> GetAllAsync()
+    public async Task<List<Transaction>> GetAllAsync(int userId)
     {
-        return await context.Transactions.ToListAsync();
+        return await context.Transactions.Where(x => x.UserId == userId).ToListAsync();
     }
 
     public async Task<Transaction?> GetByIdAsync(int id)
@@ -27,7 +28,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         return await context.Transactions.FirstOrDefaultAsync(n => n.Id == id);
     }
 
-    public async Task<Transaction> AddAsync(PostTransactionDto transactionDto)
+    public async Task<Transaction> AddAsync(PostTransactionDto transactionDto, int userId)
     {
         var newTransaction = new Transaction
         {
@@ -36,7 +37,8 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             Category = transactionDto.Category,
             Description = transactionDto.Description,
             CreatedAt = transactionDto.CreatedAt,
-            LastUpdatedAt = DateTime.UtcNow
+            LastUpdatedAt = DateTime.UtcNow,
+            UserId = userId
         };
 
         await context.Transactions.AddAsync(newTransaction);
