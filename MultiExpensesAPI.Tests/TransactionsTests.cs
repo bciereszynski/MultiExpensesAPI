@@ -1,12 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
-using MultiExpensesAPI;
 using MultiExpensesAPI.Models;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Xunit;
 
 namespace Tests;
 
@@ -40,11 +37,26 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
+    private async Task<int> CreateGroupAsync(string token, string groupName = "Test Group")
+    {
+        SetAuthorizationHeader(token);
+        
+        var groupDto = new
+        {
+            name = groupName
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/groups", groupDto);
+        var group = await response.Content.ReadFromJsonAsync<Group>();
+        return group!.Id;
+    }
+
     [Fact]
-    public async Task CreateTransaction_WithAuth_ReturnsCreated()
+    public async Task CreateTransaction_WithValidGroupId_ReturnsCreated()
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var dto = new
@@ -52,7 +64,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 10.0,
             category = "Test",
-            description = "Unit test"
+            description = "Unit test",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
         };
 
         // Act
@@ -64,6 +78,33 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         var created = await response.Content.ReadFromJsonAsync<Transaction>();
         Assert.NotNull(created);
         Assert.True(created!.Id > 0);
+        Assert.Equal(groupId, created.GroupId);
+        Assert.Equal(10.0, created.Amount);
+        Assert.Equal("Test", created.Category);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithInvalidGroupId_ReturnsBadRequest()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
+        var dto = new
+        {
+            type = "expense",
+            amount = 10.0,
+            category = "Test",
+            description = "Unit test",
+            createdAt = DateTime.UtcNow,
+            groupId = 99999
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/transactions", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -77,7 +118,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 10.0,
             category = "Test",
-            description = "Unit test"
+            description = "Unit test",
+            createdAt = DateTime.UtcNow,
+            groupId = 1
         };
 
         // Act
@@ -88,10 +131,11 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetAll_WithAuth_ReturnsOkWithTransactions()
+    public async Task GetAll_WithAuth_ReturnsOnlyUserTransactions()
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var dto = new
@@ -99,7 +143,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "income",
             amount = 50.0,
             category = "Salary",
-            description = "Monthly salary"
+            description = "Monthly salary",
+            createdAt = DateTime.UtcNow,
+            groupId
         };
         await _client.PostAsJsonAsync("/api/transactions", dto);
 
@@ -112,6 +158,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         var transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
         Assert.NotNull(transactions);
         Assert.NotEmpty(transactions);
+        Assert.All(transactions, t => Assert.Equal(groupId, t.GroupId));
     }
 
     [Fact]
@@ -132,6 +179,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var dto = new
@@ -139,7 +187,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 25.0,
             category = "Food",
-            description = "Groceries"
+            description = "Groceries",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
         };
         var createResponse = await _client.PostAsJsonAsync("/api/transactions", dto);
         var created = await createResponse.Content.ReadFromJsonAsync<Transaction>();
@@ -155,6 +205,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(created.Id, transaction!.Id);
         Assert.Equal(25.0, transaction.Amount);
         Assert.Equal("Food", transaction.Category);
+        Assert.Equal(groupId, transaction.GroupId);
     }
 
     [Fact]
@@ -189,6 +240,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var createDto = new
@@ -196,7 +248,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 30.0,
             category = "Transport",
-            description = "Bus ticket"
+            description = "Bus ticket",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
         };
         var createResponse = await _client.PostAsJsonAsync("/api/transactions", createDto);
         var created = await createResponse.Content.ReadFromJsonAsync<Transaction>();
@@ -207,9 +261,11 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 35.0,
             category = "Transport",
-            description = "Train ticket"
+            description = "Train ticket",
+            createdAt = created!.CreatedAt,
+            groupId = groupId
         };
-        var response = await _client.PutAsJsonAsync($"/api/transactions/{created!.Id}", updateDto);
+        var response = await _client.PutAsJsonAsync($"/api/transactions/{created.Id}", updateDto);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -219,6 +275,42 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(created.Id, updated!.Id);
         Assert.Equal(35.0, updated.Amount);
         Assert.Equal("Train ticket", updated.Description);
+    }
+
+    [Fact]
+    public async Task Update_WithInvalidGroupId_ReturnsBadRequest()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
+        SetAuthorizationHeader(token);
+
+        var createDto = new
+        {
+            type = "expense",
+            amount = 30.0,
+            category = "Transport",
+            description = "Bus ticket",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
+        };
+        var createResponse = await _client.PostAsJsonAsync("/api/transactions", createDto);
+        var created = await createResponse.Content.ReadFromJsonAsync<Transaction>();
+
+        // Act
+        var updateDto = new
+        {
+            type = "expense",
+            amount = 35.0,
+            category = "Transport",
+            description = "Train ticket",
+            createdAt = created!.CreatedAt,
+            groupId = 99999 // Invalid group
+        };
+        var response = await _client.PutAsJsonAsync($"/api/transactions/{created.Id}", updateDto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -232,7 +324,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 40.0,
             category = "Test",
-            description = "Should be unauthorized"
+            description = "Should be unauthorized",
+            createdAt = DateTime.UtcNow,
+            groupId = 1
         };
 
         // Act
@@ -247,6 +341,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var updateDto = new
@@ -254,7 +349,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 40.0,
             category = "Test",
-            description = "Should not exist"
+            description = "Should not exist",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
         };
 
         // Act
@@ -269,6 +366,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
         SetAuthorizationHeader(token);
 
         var dto = new
@@ -276,7 +374,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 15.0,
             category = "Entertainment",
-            description = "Movie ticket"
+            description = "Movie ticket",
+            createdAt = DateTime.UtcNow,
+            groupId = groupId
         };
         var createResponse = await _client.PostAsJsonAsync("/api/transactions", dto);
         var created = await createResponse.Content.ReadFromJsonAsync<Transaction>();
@@ -323,6 +423,7 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var user1Token = await GetAuthTokenAsync();
+        var user1GroupId = await CreateGroupAsync(user1Token, "User 1 Group");
         SetAuthorizationHeader(user1Token);
 
         var user1Transaction = new
@@ -330,12 +431,14 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "expense",
             amount = 100.0,
             category = "Groceries",
-            description = "User 1 grocery shopping"
+            description = "User 1 grocery shopping",
+            createdAt = DateTime.UtcNow,
+            groupId = user1GroupId
         };
-        var user1Response = await _client.PostAsJsonAsync("/api/transactions", user1Transaction);
-        var user1CreatedTransaction = await user1Response.Content.ReadFromJsonAsync<Transaction>();
+        await _client.PostAsJsonAsync("/api/transactions", user1Transaction);
 
         var user2Token = await GetAuthTokenAsync();
+        var user2GroupId = await CreateGroupAsync(user2Token, "User 2 Group");
         SetAuthorizationHeader(user2Token);
 
         var user2Transaction = new
@@ -343,7 +446,9 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             type = "income",
             amount = 200.0,
             category = "Salary",
-            description = "User 2 monthly salary"
+            description = "User 2 monthly salary",
+            createdAt = DateTime.UtcNow,
+            groupId = user2GroupId
         };
         var user2Response = await _client.PostAsJsonAsync("/api/transactions", user2Transaction);
         var user2CreatedTransaction = await user2Response.Content.ReadFromJsonAsync<Transaction>();
@@ -359,10 +464,45 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal("Salary", transactions[0].Category);
         Assert.Equal(200.0, transactions[0].Amount);
         Assert.Equal("income", transactions[0].Type);
-        
-        if (transactions[0].UserId.HasValue)
+        Assert.Equal(user2GroupId, transactions[0].GroupId);
+    }
+
+    [Fact]
+    public async Task TransactionCannotBeMovedBetweenGroups()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var group1Id = await CreateGroupAsync(token, "Group 1");
+        var group2Id = await CreateGroupAsync(token, "Group 2");
+        SetAuthorizationHeader(token);
+
+        var createDto = new
         {
-            Assert.NotEqual(user1CreatedTransaction!.UserId, transactions[0].UserId);
-        }
+            type = "expense",
+            amount = 50.0,
+            category = "Food",
+            description = "Dinner",
+            createdAt = DateTime.UtcNow,
+            groupId = group1Id
+        };
+        var createResponse = await _client.PostAsJsonAsync("/api/transactions", createDto);
+        var created = await createResponse.Content.ReadFromJsonAsync<Transaction>();
+
+        // Act - Try to update to different group
+        var updateDto = new
+        {
+            type = "expense",
+            amount = 50.0,
+            category = "Food",
+            description = "Dinner",
+            createdAt = created!.CreatedAt,
+            groupId = group2Id
+        };
+        var updateResponse = await _client.PutAsJsonAsync($"/api/transactions/{created.Id}", updateDto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<Transaction>();
+        Assert.Equal(group2Id, updated!.GroupId);
     }
 }
