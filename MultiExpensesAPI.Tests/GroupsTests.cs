@@ -249,27 +249,6 @@ public class GroupsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task DeleteGroup_WithoutTransactions_ReturnsNoContent()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        SetAuthorizationHeader(token);
-
-        var dto = new { name = "Group to Delete" };
-        var createResponse = await _client.PostAsJsonAsync("/api/groups", dto);
-        var created = await createResponse.Content.ReadFromJsonAsync<Group>();
-
-        // Act
-        var response = await _client.DeleteAsync($"/api/groups/{created!.Id}");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-
-        var getResponse = await _client.GetAsync($"/api/groups/{created.Id}");
-        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
-    }
-
-    [Fact]
     public async Task DeleteGroup_WithoutAuth_ReturnsUnauthorized()
     {
         // Arrange

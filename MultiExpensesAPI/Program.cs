@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using MultiExpensesAPI.Data;
+using MultiExpensesAPI.Filters;
 using MultiExpensesAPI.Models;
 using MultiExpensesAPI.Services;
 using System.Text;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,7 @@ builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Conf
 builder.Services.AddScoped<ITransactionsService, TransactionsService>();
 builder.Services.AddScoped<IGroupsService, GroupsService>();
 builder.Services.AddScoped<PasswordHasher<User>>();
+builder.Services.AddScoped<GroupMemberOnlyFilter>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
