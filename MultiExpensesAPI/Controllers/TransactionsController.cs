@@ -26,35 +26,57 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     public async Task<IActionResult> GetById(int id)
     {
         // TODO - allow only for people in the group
-        var foundTransaction = await service.GetByIdAsync(id);
-        if (foundTransaction == null)
+        try
         {
-            return NotFound();
+            var foundTransaction = await service.GetByIdAsync(id);
+            if (foundTransaction == null)
+            {
+                return NotFound();
+            }
+            return Ok(foundTransaction);
         }
-        return Ok(foundTransaction);
+        catch (ArgumentException)
+        {
+            return BadRequest();
+        }
     }
 
     // POST api/Transactions
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PostTransactionDto transactionDto)
     {
-       
-        int userId = GetUserIdFromClaims();
-        var newTransaction = await service.AddAsync(transactionDto, userId);
 
-        return CreatedAtRoute("GetTransactionById", new { id = newTransaction.Id }, newTransaction);
+        int userId = GetUserIdFromClaims();
+        try
+        {
+            var newTransaction = await service.AddAsync(transactionDto, userId);
+            return CreatedAtRoute("GetTransactionById", new { id = newTransaction.Id }, newTransaction);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest();
+        }
+
     }
 
     // PUT api/Transactions/{id}
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] PostTransactionDto transactionDto)
     {
-        var updatedTransaction = await service.UpdateAsync(id, transactionDto);
-        if (updatedTransaction == null)
+        try
         {
-            return NotFound();
+            var updatedTransaction = await service.UpdateAsync(id, transactionDto);
+            if (updatedTransaction == null)
+            {
+                return NotFound();
+            }
+            return Ok(updatedTransaction);
         }
-        return Ok(updatedTransaction);
+        catch (ArgumentException)
+        {
+            return BadRequest();
+        }
+
     }
 
     // DELETE api/Transactions/{id}
