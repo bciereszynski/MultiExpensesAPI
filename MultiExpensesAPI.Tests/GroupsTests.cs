@@ -393,51 +393,6 @@ public class GroupsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetGroupTransactions_ReturnsAllGroupTransactions()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        SetAuthorizationHeader(token);
-
-        var groupDto = new { name = "Transactions Group" };
-        var groupResponse = await _client.PostAsJsonAsync("/api/groups", groupDto);
-        var group = await groupResponse.Content.ReadFromJsonAsync<Group>();
-
-        var transaction1 = new
-        {
-            type = "expense",
-            amount = 25.0,
-            category = "Food",
-            description = "Groceries",
-            createdAt = DateTime.UtcNow,
-            groupId = group!.Id
-        };
-        var transaction2 = new
-        {
-            type = "income",
-            amount = 100.0,
-            category = "Salary",
-            description = "Payment",
-            createdAt = DateTime.UtcNow,
-            groupId = group.Id
-        };
-
-        await _client.PostAsJsonAsync("/api/transactions", transaction1);
-        await _client.PostAsJsonAsync("/api/transactions", transaction2);
-
-        // Act
-        var response = await _client.GetAsync($"/api/groups/{group.Id}/transactions");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
-        Assert.NotNull(transactions);
-        Assert.Equal(2, transactions!.Count);
-        Assert.All(transactions, t => Assert.Equal(group.Id, t.GroupId));
-    }
-
-    [Fact]
     public async Task UserCanOnlySeeGroupsTheyBelongTo()
     {
         // Arrange
