@@ -16,6 +16,7 @@ public interface IGroupsService
     Task<bool> RemoveMemberAsync(int groupId, int userId);
     Task<List<UserDto>> GetMembersAsync(int groupId);
     Task<List<Transaction>> GetGroupTransactionsAsync(int groupId);
+    Task<bool> IsUserMemberOfGroupAsync(int userId, int groupId);
 }
 
 public class GroupsService(AppDbContext context) : IGroupsService
@@ -66,7 +67,7 @@ public class GroupsService(AppDbContext context) : IGroupsService
 
     public async Task<Group?> UpdateAsync(int id, PostGroupDto groupDto)
     {
-        var group = await context.Groups.FirstOrDefaultAsync(g => g.Id == id);
+        var group = await GetByIdAsync(id);
         if (group == null)
         {
             return null;
@@ -83,9 +84,7 @@ public class GroupsService(AppDbContext context) : IGroupsService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var group = await context.Groups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == id);
+        var group = await GetByIdAsync(id);
 
         if (group == null)
         {
@@ -112,7 +111,7 @@ public class GroupsService(AppDbContext context) : IGroupsService
 
         if (group.Members.Any(m => m.Id == userId))
         {
-            return false; // User already in group
+            return false;
         }
 
         group.Members.Add(user);
@@ -124,9 +123,7 @@ public class GroupsService(AppDbContext context) : IGroupsService
 
     public async Task<bool> RemoveMemberAsync(int groupId, int userId)
     {
-        var group = await context.Groups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == groupId);
+        var group = await GetByIdAsync(groupId);
 
         if (group == null)
         {
@@ -148,9 +145,7 @@ public class GroupsService(AppDbContext context) : IGroupsService
 
     public async Task<List<UserDto>> GetMembersAsync(int groupId)
     {
-        var group = await context.Groups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == groupId);
+        var group = await GetByIdAsync(groupId);
 
         return group?.Members.Select(m => new UserDto(m.Id, m.Email)).ToList()
            ?? new List<UserDto>();
@@ -161,5 +156,12 @@ public class GroupsService(AppDbContext context) : IGroupsService
         return await context.Transactions
             .Where(t => t.GroupId == groupId)
             .ToListAsync();
+    }
+
+    public async Task<bool> IsUserMemberOfGroupAsync(int userId, int groupId)
+    {
+        return await context.Groups
+            .Where(g => g.Id == groupId)
+            .AnyAsync(g => g.Members.Any(m => m.Id == userId));
     }
 }

@@ -26,22 +26,19 @@ public class GroupsController(IGroupsService service) : ControllerBase
     [HttpGet("{id}", Name = "GetGroupById")]
     public async Task<IActionResult> GetById(int id)
     {
-        int userId = GetUserIdFromClaims();
-        var foundGroup = await service.GetByIdAsync(id);
-        
-        if (foundGroup == null)
-        {
-            return NotFound();
-        }
-
-        // Check if user is a member of the group
-        var members = await service.GetMembersAsync(id);
-        if (!members.Any(m => m.Id == userId))
+        if (!await ValidateAccessToGroup(id))
         {
             return Forbid();
         }
 
-        return Ok(foundGroup);
+        var group = await service.GetByIdAsync(id);
+        
+        if (group == null)
+        {
+            return NotFound();
+        }
+        
+        return Ok(group);
     }
 
     // POST api/Groups
@@ -65,23 +62,37 @@ public class GroupsController(IGroupsService service) : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] PostGroupDto groupDto)
     {
-        var updatedGroup = await service.UpdateAsync(id, groupDto);
-        if (updatedGroup == null)
+        if (!await ValidateAccessToGroup(id))
+        {
+            return Forbid();
+        }
+
+        var updated = await service.UpdateAsync(id, groupDto);
+        
+        if (updated == null)
         {
             return NotFound();
         }
-        return Ok(updatedGroup);
+        
+        return Ok(updated);
     }
 
     // DELETE api/Groups/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        if (!await ValidateAccessToGroup(id))
+        {
+            return Forbid();
+        }
+
         var result = await service.DeleteAsync(id);
+        
         if (!result)
         {
             return NotFound();
         }
+        
         return NoContent();
     }
 
@@ -89,11 +100,18 @@ public class GroupsController(IGroupsService service) : ControllerBase
     [HttpPost("{groupId}/members")]
     public async Task<IActionResult> AddMember(int groupId, [FromBody] AddMemberToGroupDto dto)
     {
+        if (!await ValidateAccessToGroup(groupId))
+        {
+            return Forbid();
+        }
+
         var result = await service.AddMemberAsync(groupId, dto.UserId);
+        
         if (!result)
         {
             return BadRequest("Failed to add member. Group or user not found, or user already in group.");
         }
+        
         return Ok();
     }
 
@@ -111,18 +129,35 @@ public class GroupsController(IGroupsService service) : ControllerBase
 
     // GET api/Groups/{groupId}/members
     [HttpGet("{groupId}/members")]
+    [Authorize]
     public async Task<IActionResult> GetMembers(int groupId)
     {
+
+        if (!await ValidateAccessToGroup(groupId))
+        {
+            return Forbid();
+        }
+        
         var members = await service.GetMembersAsync(groupId);
+        
         return Ok(members);
     }
 
     // GET api/Groups/{groupId}/transactions
     [HttpGet("{groupId}/transactions")]
+    [Authorize]
     public async Task<IActionResult> GetGroupTransactions(int groupId)
     {
         var transactions = await service.GetGroupTransactionsAsync(groupId);
+        
         return Ok(transactions);
+    }
+
+    private async Task<bool> ValidateAccessToGroup(int groupId)
+    {
+        int userId = GetUserIdFromClaims();
+
+        return await service.IsUserMemberOfGroupAsync(userId, groupId);
     }
 
     private int GetUserIdFromClaims()
