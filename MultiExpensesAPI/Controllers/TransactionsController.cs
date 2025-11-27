@@ -2,33 +2,33 @@
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using MultiExpensesAPI.Dtos;
+using MultiExpensesAPI.Filters;
 using MultiExpensesAPI.Services;
 using System.Security.Claims;
 
 namespace MultiExpensesAPI.Controllers;
-[Route("api/[controller]")]
+[Route("api/groups/{groupId}/[controller]")]
 [ApiController]
 [EnableCors("AllowAll")]
 [Authorize]
+[ServiceFilter(typeof(GroupMemberOnlyFilter))]
 public class TransactionsController(ITransactionsService service) : ControllerBase
 {
-    // GET api/Transactions
+    // GET api/groups/{groupId}/transactions
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(int groupId)
     {
-        int userId = GetUserIdFromClaims();
-        var allTransactions = await service.GetAllAsync(userId);
+        var allTransactions = await service.GetAllByGroupAsync(groupId);
         return Ok(allTransactions);
     }
 
-    // GET api/Transactions/{id}
+    // GET api/groups/{groupId}/transactions/{id}
     [HttpGet("{id}", Name = "GetTransactionById")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(int groupId, int id)
     {
-        // TODO - allow only for people in the group
         try
         {
-            var foundTransaction = await service.GetByIdAsync(id);
+            var foundTransaction = await service.GetByIdAsync(id, groupId);
             if (foundTransaction == null)
             {
                 return NotFound();
@@ -41,31 +41,30 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
         }
     }
 
-    // POST api/Transactions
+    // POST api/groups/{groupId}/transactions
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] PostTransactionDto transactionDto)
+    public async Task<IActionResult> Create(int groupId, [FromBody] PostTransactionDto transactionDto)
     {
-
         int userId = GetUserIdFromClaims();
+        
         try
         {
-            var newTransaction = await service.AddAsync(transactionDto, userId);
-            return CreatedAtRoute("GetTransactionById", new { id = newTransaction.Id }, newTransaction);
+            var newTransaction = await service.AddAsync(transactionDto, groupId, userId);
+            return CreatedAtRoute("GetTransactionById", new { groupId, id = newTransaction.Id }, newTransaction);
         }
         catch (ArgumentException)
         {
             return BadRequest();
         }
-
     }
 
-    // PUT api/Transactions/{id}
+    // PUT api/groups/{groupId}/transactions/{id}
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] PostTransactionDto transactionDto)
-    {
+    public async Task<IActionResult> Update(int groupId, int id, [FromBody] PostTransactionDto transactionDto)
+    {        
         try
         {
-            var updatedTransaction = await service.UpdateAsync(id, transactionDto);
+            var updatedTransaction = await service.UpdateAsync(id, transactionDto, groupId);
             if (updatedTransaction == null)
             {
                 return NotFound();
@@ -76,14 +75,13 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
         {
             return BadRequest();
         }
-
     }
 
-    // DELETE api/Transactions/{id}
+    // DELETE api/groups/{groupId}/transactions/{id}
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int groupId, int id)
     {
-        var result = await service.DeleteAsync(id);
+        var result = await service.DeleteAsync(id, groupId);
         if (!result)
         {
             return NotFound();

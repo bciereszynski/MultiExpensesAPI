@@ -114,15 +114,6 @@ public class GroupsController(IGroupsService service) : ControllerBase
         return Ok(members);
     }
 
-    [ServiceFilter(typeof(GroupMemberOnlyFilter))]
-    [HttpGet("{groupId}/transactions")]
-    public async Task<IActionResult> GetGroupTransactions(int groupId)
-    {
-        var transactions = await service.GetGroupTransactionsAsync(groupId);
-
-        return Ok(transactions);
-    }
-
     private int GetUserIdFromClaims()
     {
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);

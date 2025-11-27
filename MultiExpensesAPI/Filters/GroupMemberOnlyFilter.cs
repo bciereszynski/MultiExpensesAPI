@@ -16,8 +16,9 @@ public class GroupMemberOnlyFilter : IAsyncActionFilter
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (!context.ActionArguments.TryGetValue("id", out object? idObject) &&
-            !context.ActionArguments.TryGetValue("groupId", out idObject))
+        if (!context.ActionArguments.TryGetValue("groupId", out object ? idObject) && 
+                !context.ActionArguments.TryGetValue("id", out  idObject))
+            
         {
             await next();
             return;
