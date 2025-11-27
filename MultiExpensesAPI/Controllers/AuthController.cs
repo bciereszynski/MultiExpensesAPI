@@ -24,15 +24,16 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
             return BadRequest("Email already in use.");
         }
 
-        var hashedPassword = passwordHasher.HashPassword(null, userDto.Password);
-
         var newUser = new User()
         {
             Email = userDto.Email,
-            Password = hashedPassword,
+            Password = string.Empty,
             CreatedAt = DateTime.UtcNow,
             LastUpdatedAt = DateTime.UtcNow
         };
+
+        var hashedPassword = passwordHasher.HashPassword(newUser, userDto.Password);
+        newUser.Password = hashedPassword;
 
         context.Users.Add(newUser);
         context.SaveChanges();
