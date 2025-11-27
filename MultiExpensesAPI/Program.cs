@@ -15,9 +15,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins("https://frontend.com")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -85,9 +94,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseCors("AllowAll");
 }
 
+app.UseCors("AllowAll");
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
