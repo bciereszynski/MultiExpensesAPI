@@ -3,10 +3,13 @@ using Microsoft.VisualStudio.TestPlatform.TestHost;
 using MultiExpensesAPI;
 using MultiExpensesAPI.Models;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace Tests;
+
 public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
@@ -16,9 +19,34 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         _client = factory.CreateClient();
     }
 
-    [Fact]
-    public async Task CreateTransaction_ReturnsCreated()
+    private async Task<string> GetAuthTokenAsync()
     {
+        var userDto = new
+        {
+            email = $"testuser_{Guid.NewGuid()}@example.com",
+            password = "TestPassword123!"
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/auth/register", userDto);
+        var content = await response.Content.ReadAsStringAsync();
+        var tokenResponse = JsonSerializer.Deserialize<JsonElement>(content);
+        
+        tokenResponse.TryGetProperty("token", out var token);
+        return token.GetString()!;
+    }
+
+    private void SetAuthorizationHeader(string token)
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithAuth_ReturnsCreated()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var dto = new
         {
             type = "expense",
@@ -27,8 +55,10 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
             description = "Unit test"
         };
 
+        // Act
         var response = await _client.PostAsJsonAsync("/api/transactions", dto);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var created = await response.Content.ReadFromJsonAsync<Transaction>();
@@ -37,9 +67,33 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetAll_ReturnsOkWithTransactions()
+    public async Task CreateTransaction_WithoutAuth_ReturnsUnauthorized()
+    {
+        // Arrange - No token set
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var dto = new
+        {
+            type = "expense",
+            amount = 10.0,
+            category = "Test",
+            description = "Unit test"
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/transactions", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAll_WithAuth_ReturnsOkWithTransactions()
     {
         // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var dto = new
         {
             type = "income",
@@ -61,9 +115,25 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetById_ExistingTransaction_ReturnsOk()
+    public async Task GetAll_WithoutAuth_ReturnsUnauthorized()
+    {
+        // Arrange - No token set
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // Act
+        var response = await _client.GetAsync("/api/transactions");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetById_WithAuth_ExistingTransaction_ReturnsOk()
     {
         // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var dto = new
         {
             type = "expense",
@@ -88,8 +158,25 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetById_NonExistingTransaction_ReturnsNotFound()
+    public async Task GetById_WithoutAuth_ReturnsUnauthorized()
     {
+        // Arrange - No token set
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // Act
+        var response = await _client.GetAsync("/api/transactions/1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetById_WithAuth_NonExistingTransaction_ReturnsNotFound()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         // Act
         var response = await _client.GetAsync("/api/transactions/99999");
 
@@ -98,9 +185,12 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Update_ExistingTransaction_ReturnsOk()
+    public async Task Update_WithAuth_ExistingTransaction_ReturnsOk()
     {
         // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var createDto = new
         {
             type = "expense",
@@ -132,9 +222,33 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Update_NonExistingTransaction_ReturnsNotFound()
+    public async Task Update_WithoutAuth_ReturnsUnauthorized()
+    {
+        // Arrange - No token set
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var updateDto = new
+        {
+            type = "expense",
+            amount = 40.0,
+            category = "Test",
+            description = "Should be unauthorized"
+        };
+
+        // Act
+        var response = await _client.PutAsJsonAsync("/api/transactions/1", updateDto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_WithAuth_NonExistingTransaction_ReturnsNotFound()
     {
         // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var updateDto = new
         {
             type = "expense",
@@ -151,9 +265,12 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Delete_ExistingTransaction_ReturnsNoContent()
+    public async Task Delete_WithAuth_ExistingTransaction_ReturnsNoContent()
     {
         // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         var dto = new
         {
             type = "expense",
@@ -175,12 +292,77 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Delete_NonExistingTransaction_ReturnsNotFound()
+    public async Task Delete_WithoutAuth_ReturnsUnauthorized()
     {
+        // Arrange - No token set
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // Act
+        var response = await _client.DeleteAsync("/api/transactions/1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_WithAuth_NonExistingTransaction_ReturnsNotFound()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(token);
+
         // Act
         var response = await _client.DeleteAsync("/api/transactions/99999");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UserCanOnlySeeOwnTransactions()
+    {
+        // Arrange
+        var user1Token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(user1Token);
+
+        var user1Transaction = new
+        {
+            type = "expense",
+            amount = 100.0,
+            category = "Groceries",
+            description = "User 1 grocery shopping"
+        };
+        var user1Response = await _client.PostAsJsonAsync("/api/transactions", user1Transaction);
+        var user1CreatedTransaction = await user1Response.Content.ReadFromJsonAsync<Transaction>();
+
+        var user2Token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(user2Token);
+
+        var user2Transaction = new
+        {
+            type = "income",
+            amount = 200.0,
+            category = "Salary",
+            description = "User 2 monthly salary"
+        };
+        var user2Response = await _client.PostAsJsonAsync("/api/transactions", user2Transaction);
+        var user2CreatedTransaction = await user2Response.Content.ReadFromJsonAsync<Transaction>();
+
+        // Act
+        var getAllResponse = await _client.GetAsync("/api/transactions");
+        var transactions = await getAllResponse.Content.ReadFromJsonAsync<List<Transaction>>();
+
+        // Assert
+        Assert.NotNull(transactions);
+        Assert.Single(transactions);
+        Assert.Equal(user2CreatedTransaction!.Id, transactions![0].Id);
+        Assert.Equal("Salary", transactions[0].Category);
+        Assert.Equal(200.0, transactions[0].Amount);
+        Assert.Equal("income", transactions[0].Type);
+        
+        if (transactions[0].UserId.HasValue)
+        {
+            Assert.NotEqual(user1CreatedTransaction!.UserId, transactions[0].UserId);
+        }
     }
 }
