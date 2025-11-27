@@ -14,7 +14,7 @@ namespace MultiExpensesAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [EnableCors("AllowAll")]
-public class AuthController(AppDbContext context, PasswordHasher<User> passwordHasher) : Controller
+public class AuthController(AppDbContext context, PasswordHasher<User> passwordHasher, IConfiguration configuration) : Controller
 {
     [HttpPost("Register")]
     public IActionResult Register([FromBody] PostUserDto userDto)
@@ -69,13 +69,13 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
                 new Claim(ClaimTypes.Email, user.Email)
             };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("super-secret-key-pb-bpjc-bial-more-than-32-characters"));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:SecretKey"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
-            issuer: "dotnetdevs",
-            audience: "dotnetdevs",
+            issuer: configuration["Jwt:Issuer"],
+            audience: configuration["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.Now.AddHours(1),
+            expires: DateTime.Now.AddHours(double.Parse(configuration["Jwt:ExpirationHours"]!)),
             signingCredentials: creds);
 
 
