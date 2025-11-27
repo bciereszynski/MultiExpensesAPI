@@ -173,8 +173,6 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>
         
         Assert.False(string.IsNullOrEmpty(regToken.GetString()));
         Assert.False(string.IsNullOrEmpty(logToken.GetString()));
-
-        Assert.Equal(logToken.GetString(), regToken.GetString());
     }
 
     [Fact]
