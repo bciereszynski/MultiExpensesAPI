@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MultiExpensesAPI.Data;
 using MultiExpensesAPI.Dtos;
@@ -17,7 +18,7 @@ namespace MultiExpensesAPI.Controllers;
 public class AuthController(AppDbContext context, PasswordHasher<User> passwordHasher, IConfiguration configuration) : Controller
 {
     [HttpPost("Register")]
-    public IActionResult Register([FromBody] PostUserDto userDto)
+    public async Task<IActionResult> Register([FromBody] PostUserDto userDto)
     {
         if (context.Users.Any(u => u.Email == userDto.Email))
         {
@@ -36,15 +37,15 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
         newUser.Password = hashedPassword;
 
         context.Users.Add(newUser);
-        context.SaveChanges();
+        await context.SaveChangesAsync();
 
-        var token = GenerateJwtToken(newUser);
+        var token = await GenerateJwtTokenAsync(newUser);
 
         return Ok(new { Token = token });
     }
 
     [HttpPost("Login")]
-    public IActionResult Login([FromBody] PostUserDto userDto)
+    public async Task<IActionResult> Login([FromBody] PostUserDto userDto)
     {
         var user = context.Users.SingleOrDefault(u => u.Email == userDto.Email);
         if (user == null)
@@ -58,13 +59,14 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
             return Unauthorized("Invalid credentials.");
         }
 
-        var token = GenerateJwtToken(user);
+        var token = await GenerateJwtTokenAsync(user);
         return Ok(new { Token = token });
     }
 
-    private string GenerateJwtToken(User user)
+    private async Task<string> GenerateJwtTokenAsync(User user)
     {
-        var claims = new[]
+
+        var claims = new List<Claim>
         {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email)
