@@ -7,7 +7,7 @@ using MultiExpensesAPI.Services;
 using System.Security.Claims;
 
 namespace MultiExpensesAPI.Controllers;
-[Route("api/groups/{groupId}/[controller]")]
+[Route("api/Groups/{groupId}/[controller]")]
 [ApiController]
 [EnableCors("AllowAll")]
 [Authorize]
