@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MultiExpensesAPI.Data;
 
@@ -11,9 +12,11 @@ using MultiExpensesAPI.Data;
 namespace MultiExpensesAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251128020822_Add_Group_Invitations")]
+    partial class Add_Group_Invitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,12 +80,15 @@ namespace MultiExpensesAPI.Migrations
                     b.Property<int>("GroupId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("LastUpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("UsedByUserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -90,6 +96,8 @@ namespace MultiExpensesAPI.Migrations
 
                     b.HasIndex("Token")
                         .IsUnique();
+
+                    b.HasIndex("UsedByUserId");
 
                     b.ToTable("GroupInvitations");
                 });
@@ -187,7 +195,13 @@ namespace MultiExpensesAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("MultiExpensesAPI.Models.User", "UsedByUser")
+                        .WithMany()
+                        .HasForeignKey("UsedByUserId");
+
                     b.Navigation("Group");
+
+                    b.Navigation("UsedByUser");
                 });
 
             modelBuilder.Entity("MultiExpensesAPI.Models.Transaction", b =>

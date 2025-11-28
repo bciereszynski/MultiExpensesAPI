@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Group> Groups { get; set; }
 
+    public DbSet<GroupInvitation> GroupInvitations { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -30,5 +32,15 @@ public class AppDbContext : DbContext
             .WithMany(g => g.Transactions)
             .HasForeignKey(t => t.GroupId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<GroupInvitation>()
+            .HasIndex(gi => gi.Token)
+            .IsUnique();
+            
+        modelBuilder.Entity<GroupInvitation>()
+            .HasOne(gi => gi.Group)
+            .WithMany()
+            .HasForeignKey(gi => gi.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
