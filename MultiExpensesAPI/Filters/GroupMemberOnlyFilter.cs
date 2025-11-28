@@ -8,10 +8,12 @@ namespace MultiExpensesAPI.Filters;
 public class GroupMemberOnlyFilter : IAsyncActionFilter
 {
     private readonly IGroupsService _service;
+    private readonly IMembersService _membersService;
 
-    public GroupMemberOnlyFilter(IGroupsService service)
+    public GroupMemberOnlyFilter(IGroupsService service, IMembersService membersService)
     {
         _service = service;
+        _membersService = membersService;
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -46,7 +48,7 @@ public class GroupMemberOnlyFilter : IAsyncActionFilter
             return;
         }
 
-        bool isMember = await _service.IsUserMemberOfGroupAsync(userId, groupId);
+        bool isMember = await _membersService.IsUserMemberOfGroupAsync(userId, groupId);
 
         if (!isMember)
         {

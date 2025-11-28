@@ -80,40 +80,6 @@ public class GroupsController(IGroupsService service) : ControllerBase
         return NoContent();
     }
 
-    [ServiceFilter(typeof(GroupMemberOnlyFilter))]
-    [HttpPost("{groupId}/members")]
-    public async Task<IActionResult> AddMember(int groupId, [FromBody] AddMemberToGroupDto dto)
-    {
-        var result = await service.AddMemberAsync(groupId, dto.UserId);
-
-        if (!result)
-        {
-            return BadRequest("Failed to add member. Group or user not found, or user already in group.");
-        }
-
-        return Ok();
-    }
-
-    [HttpDelete("{groupId}/members/{userId}")]
-    public async Task<IActionResult> RemoveMember(int groupId, int userId)
-    {
-        var result = await service.RemoveMemberAsync(groupId, userId);
-        if (!result)
-        {
-            return NotFound("Group or member not found.");
-        }
-        return NoContent();
-    }
-
-    [ServiceFilter(typeof(GroupMemberOnlyFilter))]
-    [HttpGet("{groupId}/members")]
-    public async Task<IActionResult> GetMembers(int groupId)
-    {
-        var members = await service.GetMembersAsync(groupId);
-
-        return Ok(members);
-    }
-
     private int GetUserIdFromClaims()
     {
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
