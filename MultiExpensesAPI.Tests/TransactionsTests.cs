@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc.Testing;
+using MultiExpensesAPI.Dtos;
 using MultiExpensesAPI.Models;
 using System.Net;
 using System.Net.Http.Headers;
@@ -604,5 +605,323 @@ public class TransactionsTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Single(group2Transactions);
         Assert.Equal("Salary", group2Transactions![0].Category);
         Assert.Equal(200.0, group2Transactions[0].Amount);
+    }
+
+    [Fact]
+    public async Task GetExpensesByMember_WithExpenses_ReturnsCorrectSum()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
+        SetAuthorizationHeader(token);
+
+        // Get the current user's ID
+        var membersResponse = await _client.GetAsync($"/api/groups/{groupId}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Create multiple expense transactions
+        var expense1 = new
+        {
+            type = "expense",
+            amount = 100.0,
+            category = "Food",
+            description = "Groceries",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", expense1);
+
+        var expense2 = new
+        {
+            type = "expense",
+            amount = 50.0,
+            category = "Transport",
+            description = "Gas",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", expense2);
+
+        // Create an income (should not be included)
+        var income = new
+        {
+            type = "income",
+            amount = 200.0,
+            category = "Salary",
+            description = "Monthly salary",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", income);
+
+        // Act
+        var response = await _client.GetAsync($"/api/groups/{groupId}/transactions/expenses/{memberId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var totalExpenses = await response.Content.ReadFromJsonAsync<double>();
+        Assert.Equal(150.0, totalExpenses); // 100 + 50
+    }
+
+    [Fact]
+    public async Task GetExpensesByMember_NoExpenses_ReturnsZero()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
+        SetAuthorizationHeader(token);
+
+        var membersResponse = await _client.GetAsync($"/api/groups/{groupId}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Act
+        var response = await _client.GetAsync($"/api/groups/{groupId}/transactions/expenses/{memberId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var totalExpenses = await response.Content.ReadFromJsonAsync<double>();
+        Assert.Equal(0.0, totalExpenses);
+    }
+
+    [Fact]
+    public async Task GetIncomeByMember_WithIncome_ReturnsCorrectSum()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
+        SetAuthorizationHeader(token);
+
+        // Get the current user's ID
+        var membersResponse = await _client.GetAsync($"/api/groups/{groupId}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Create multiple income transactions
+        var income1 = new
+        {
+            type = "income",
+            amount = 1000.0,
+            category = "Salary",
+            description = "Monthly salary",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", income1);
+
+        var income2 = new
+        {
+            type = "income",
+            amount = 500.0,
+            category = "Bonus",
+            description = "Performance bonus",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", income2);
+
+        // Create an expense (should not be included)
+        var expense = new
+        {
+            type = "expense",
+            amount = 200.0,
+            category = "Food",
+            description = "Groceries",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", expense);
+
+        // Act
+        var response = await _client.GetAsync($"/api/groups/{groupId}/transactions/income/{memberId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var totalIncome = await response.Content.ReadFromJsonAsync<double>();
+        Assert.Equal(1500.0, totalIncome); // 1000 + 500
+    }
+
+    [Fact]
+    public async Task GetIncomeByMember_NoIncome_ReturnsZero()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(token);
+        SetAuthorizationHeader(token);
+
+        var membersResponse = await _client.GetAsync($"/api/groups/{groupId}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Act
+        var response = await _client.GetAsync($"/api/groups/{groupId}/transactions/income/{memberId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var totalIncome = await response.Content.ReadFromJsonAsync<double>();
+        Assert.Equal(0.0, totalIncome);
+    }
+
+    [Fact]
+    public async Task GetExpensesByMember_IsolatesTransactionsByGroup()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var group1Id = await CreateGroupAsync(token, "Group 1");
+        var group2Id = await CreateGroupAsync(token, "Group 2");
+        SetAuthorizationHeader(token);
+
+        var membersResponse = await _client.GetAsync($"/api/groups/{group1Id}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Create expense in group 1
+        var expense1 = new
+        {
+            type = "expense",
+            amount = 100.0,
+            category = "Food",
+            description = "Group 1 expense",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{group1Id}/transactions", expense1);
+
+        // Create expense in group 2
+        var expense2 = new
+        {
+            type = "expense",
+            amount = 200.0,
+            category = "Food",
+            description = "Group 2 expense",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{group2Id}/transactions", expense2);
+
+        // Act
+        var group1Response = await _client.GetAsync($"/api/groups/{group1Id}/transactions/expenses/{memberId}");
+        var group1Expenses = await group1Response.Content.ReadFromJsonAsync<double>();
+
+        var group2Response = await _client.GetAsync($"/api/groups/{group2Id}/transactions/expenses/{memberId}");
+        var group2Expenses = await group2Response.Content.ReadFromJsonAsync<double>();
+
+        // Assert
+        Assert.Equal(100.0, group1Expenses);
+        Assert.Equal(200.0, group2Expenses);
+    }
+
+    [Fact]
+    public async Task GetIncomeByMember_IsolatesTransactionsByGroup()
+    {
+        // Arrange
+        var token = await GetAuthTokenAsync();
+        var group1Id = await CreateGroupAsync(token, "Group 1");
+        var group2Id = await CreateGroupAsync(token, "Group 2");
+        SetAuthorizationHeader(token);
+
+        var membersResponse = await _client.GetAsync($"/api/groups/{group1Id}/members");
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var memberId = members![0].Id;
+
+        // Create income in group 1
+        var income1 = new
+        {
+            type = "income",
+            amount = 500.0,
+            category = "Salary",
+            description = "Group 1 income",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{group1Id}/transactions", income1);
+
+        // Create income in group 2
+        var income2 = new
+        {
+            type = "income",
+            amount = 1000.0,
+            category = "Salary",
+            description = "Group 2 income",
+            createdAt = DateTime.UtcNow,
+            userId = memberId
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{group2Id}/transactions", income2);
+
+        // Act
+        var group1Response = await _client.GetAsync($"/api/groups/{group1Id}/transactions/income/{memberId}");
+        var group1Income = await group1Response.Content.ReadFromJsonAsync<double>();
+
+        var group2Response = await _client.GetAsync($"/api/groups/{group2Id}/transactions/income/{memberId}");
+        var group2Income = await group2Response.Content.ReadFromJsonAsync<double>();
+
+        // Assert
+        Assert.Equal(500.0, group1Income);
+        Assert.Equal(1000.0, group2Income);
+    }
+
+    [Fact]
+    public async Task GetIncomeByMember_IsolatesTransactionsByMember()
+    {
+        // Arrange
+        var user1Token = await GetAuthTokenAsync();
+        var groupId = await CreateGroupAsync(user1Token);
+        SetAuthorizationHeader(user1Token);
+
+        var user1MembersResponse = await _client.GetAsync($"/api/groups/{groupId}/members");
+        var user1Members = await user1MembersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var user1Id = user1Members![0].Id;
+
+        // Add second user to group
+        var user2Token = await GetAuthTokenAsync();
+        SetAuthorizationHeader(user2Token);
+        var tempGroupResponse = await _client.PostAsJsonAsync("/api/groups", new { name = "Temp" });
+        var tempGroup = await tempGroupResponse.Content.ReadFromJsonAsync<Group>();
+        var user2MembersResponse = await _client.GetAsync($"/api/groups/{tempGroup!.Id}/members");
+        var user2Members = await user2MembersResponse.Content.ReadFromJsonAsync<List<UserDto>>();
+        var user2Id = user2Members![0].Id;
+
+        SetAuthorizationHeader(user1Token);
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/members", new { userId = user2Id });
+
+        // Create income for user 1
+        var income1 = new
+        {
+            type = "income",
+            amount = 500.0,
+            category = "Salary",
+            description = "User 1 income",
+            createdAt = DateTime.UtcNow,
+            userId = user1Id
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", income1);
+
+        // Create income for user 2
+        var income2 = new
+        {
+            type = "income",
+            amount = 1000.0,
+            category = "Salary",
+            description = "User 2 income",
+            createdAt = DateTime.UtcNow,
+            userId = user2Id
+        };
+        await _client.PostAsJsonAsync($"/api/groups/{groupId}/transactions", income2);
+
+        // Act
+        var user1Response = await _client.GetAsync($"/api/groups/{groupId}/transactions/income/{user1Id}");
+        var user1Income = await user1Response.Content.ReadFromJsonAsync<double>();
+
+        var user2Response = await _client.GetAsync($"/api/groups/{groupId}/transactions/income/{user2Id}");
+        var user2Income = await user2Response.Content.ReadFromJsonAsync<double>();
+
+        // Assert
+        Assert.Equal(500.0, user1Income);
+        Assert.Equal(1000.0, user2Income);
     }
 }
