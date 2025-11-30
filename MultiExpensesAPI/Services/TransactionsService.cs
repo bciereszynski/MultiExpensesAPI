@@ -106,7 +106,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
     public async Task<double> GetIncomeByMemberAsync(int groupId, int memberId)
     {
         return await context.Transactions
-            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "earning")
+            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "income")
             .SumAsync(t => t.Amount);
     }
 }

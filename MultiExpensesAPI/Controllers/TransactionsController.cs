@@ -92,7 +92,7 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     public async Task<IActionResult> GetExpensesSum(int groupId, int memberId)
     {
         var sum = await service.GetExpensesByMemberAsync(groupId, memberId);
-        return Ok(new { memberId, groupId, expensesSum = sum });
+        return Ok(sum);
     }
 
     // GET api/groups/{groupId}/transactions/earnings/{memberId}
@@ -100,6 +100,6 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     public async Task<IActionResult> GetEarningsSum(int groupId, int memberId)
     {
         var sum = await service.GetIncomeByMemberAsync(groupId, memberId);
-        return Ok(new { memberId, groupId, earningsSum = sum });
+        return Ok(sum);
     }
 }
