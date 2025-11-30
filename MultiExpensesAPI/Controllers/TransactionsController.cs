@@ -45,11 +45,9 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
     [HttpPost]
     public async Task<IActionResult> Create(int groupId, [FromBody] PostTransactionDto transactionDto)
     {
-        int userId = GetUserIdFromClaims();
-        
         try
         {
-            var newTransaction = await service.AddAsync(transactionDto, groupId, userId);
+            var newTransaction = await service.AddAsync(transactionDto, groupId);
             return CreatedAtRoute("GetTransactionById", new { groupId, id = newTransaction.Id }, newTransaction);
         }
         catch (ArgumentException)
@@ -89,13 +87,4 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
         return NoContent();
     }
 
-    private int GetUserIdFromClaims()
-    {
-        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
-        {
-            throw new Exception("User ID claim not found.");
-        }
-        return int.Parse(userIdClaim.Value);
-    }
 }

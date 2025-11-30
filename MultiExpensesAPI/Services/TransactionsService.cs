@@ -9,7 +9,7 @@ public interface ITransactionsService
 {
     Task<List<Transaction>> GetAllByGroupAsync(int groupId);
     Task<Transaction?> GetByIdAsync(int id, int groupId);
-    Task<Transaction> AddAsync(PostTransactionDto transaction, int groupId, int userId);
+    Task<Transaction> AddAsync(PostTransactionDto transaction, int groupId);
     Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction, int groupId);
     Task<bool> DeleteAsync(int id, int groupId);
 }
@@ -29,13 +29,14 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             .FirstOrDefaultAsync(n => n.Id == id && n.GroupId == groupId);
     }
 
-    public async Task<Transaction> AddAsync(PostTransactionDto transactionDto, int groupId, int userId)
+    public async Task<Transaction> AddAsync(PostTransactionDto transactionDto, int groupId)
     {
         var groupExists = await context.Groups.AnyAsync(g => g.Id == groupId);
         if (!groupExists)
         {
             throw new ArgumentException("Group not found", nameof(groupId));
         }
+
 
         var newTransaction = new Transaction
         {
@@ -45,7 +46,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             Description = transactionDto.Description,
             CreatedAt = transactionDto.CreatedAt,
             LastUpdatedAt = DateTime.UtcNow,
-            UserId = userId,
+            UserId = transactionDto.UserId,
             GroupId = groupId
         };
 
@@ -70,6 +71,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         transactionDb.Description = transaction.Description;
         transactionDb.CreatedAt = transaction.CreatedAt;
         transactionDb.LastUpdatedAt = DateTime.UtcNow;
+        transactionDb.UserId = transaction.UserId;
         transactionDb.GroupId = groupId;
 
         context.Transactions.Update(transactionDb);
