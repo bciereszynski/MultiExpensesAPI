@@ -87,4 +87,19 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
         return NoContent();
     }
 
+    // GET api/groups/{groupId}/transactions/expenses/{memberId}
+    [HttpGet("expenses/{memberId}")]
+    public async Task<IActionResult> GetExpensesSum(int groupId, int memberId)
+    {
+        var sum = await service.GetExpensesByMemberAsync(groupId, memberId);
+        return Ok(new { memberId, groupId, expensesSum = sum });
+    }
+
+    // GET api/groups/{groupId}/transactions/earnings/{memberId}
+    [HttpGet("income/{memberId}")]
+    public async Task<IActionResult> GetEarningsSum(int groupId, int memberId)
+    {
+        var sum = await service.GetIncomeByMemberAsync(groupId, memberId);
+        return Ok(new { memberId, groupId, earningsSum = sum });
+    }
 }

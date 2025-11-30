@@ -12,6 +12,8 @@ public interface ITransactionsService
     Task<Transaction> AddAsync(PostTransactionDto transaction, int groupId);
     Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction, int groupId);
     Task<bool> DeleteAsync(int id, int groupId);
+    Task<double> GetExpensesByMemberAsync(int groupId, int memberId);
+    Task<double> GetIncomeByMemberAsync(int groupId, int memberId);
 }
 
 public class TransactionsService(AppDbContext context) : ITransactionsService
@@ -92,5 +94,19 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         context.Transactions.Remove(transactionDb);
         await context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<double> GetExpensesByMemberAsync(int groupId, int memberId)
+    {
+        return await context.Transactions
+            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "expense")
+            .SumAsync(t => t.Amount);
+    }
+
+    public async Task<double> GetIncomeByMemberAsync(int groupId, int memberId)
+    {
+        return await context.Transactions
+            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "earning")
+            .SumAsync(t => t.Amount);
     }
 }
