@@ -6,12 +6,12 @@ using System.Security.Cryptography;
 
 namespace MultiExpensesAPI.Services;
 
-
 public interface IInvitationsService
 {
     Task<CreateInvitationResponseDto?> CreateInvitationAsync(int groupId, int inviterId);
     Task<bool> AcceptInvitationAsync(string token, int userId);
     Task<bool> RevokeInvitationAsync(int groupId, string token);
+    Task<List<InvitationDto>> GetActiveInvitationsAsync(int groupId);
 }
 
 public class InvitationsService(AppDbContext context, IMembersService membersService) : IInvitationsService
@@ -71,6 +71,19 @@ public class InvitationsService(AppDbContext context, IMembersService membersSer
         context.GroupInvitations.Remove(invitation);
         await context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<List<InvitationDto>> GetActiveInvitationsAsync(int groupId)
+    {
+        var now = DateTime.UtcNow;
+        
+        var invitations = await context.GroupInvitations
+            .Where(i => i.GroupId == groupId && i.ExpiresAt > now)
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new InvitationDto(i.Id, i.Token, i.CreatedAt, i.ExpiresAt))
+            .ToListAsync();
+
+        return invitations;
     }
 
     private static string GenerateSecureToken()

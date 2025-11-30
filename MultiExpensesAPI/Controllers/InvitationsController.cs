@@ -14,6 +14,15 @@ namespace MultiExpensesAPI.Controllers;
 [Authorize]
 public class InvitationsController(IInvitationsService service) : ControllerBase
 {
+    // GET api/groups/{groupId}/invitations
+    [HttpGet]
+    [ServiceFilter(typeof(GroupMemberOnlyFilter))]
+    public async Task<IActionResult> GetActiveInvitations(int groupId)
+    {
+        var invitations = await service.GetActiveInvitationsAsync(groupId);
+        return Ok(invitations);
+    }
+
     // POST api/groups/{groupId}/invitations
     [HttpPost]
     [ServiceFilter(typeof(GroupMemberOnlyFilter))]
