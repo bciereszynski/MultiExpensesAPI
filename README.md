@@ -33,22 +33,15 @@ MultiExpensesAPI is an **ASP.NET Core Web API** that stores `Transaction`, `User
         ```
 
 3.  **Configure JWT settings**
-    * Edit `appsettings.json` and set the JWT configuration:
+    * Edit `secrets.json` and set the JWT configuration:
         ```json
         "Jwt": {
           "SecretKey": "your-secret-key-here",
-          "Issuer": "your-issuer",
-          "Audience": "your-audience"
         }
         ```
 
 4.  **Apply EF migrations to create the database**
-    * From the project folder run:
-        ```bash
-        dotnet ef migrations add Init
-        dotnet ef database update
-        ```
-    * *Or* in Visual Studio use the Package Manager Console:
+    * in Visual Studio use the Package Manager Console:
         ```powershell
         Update-Database
         ```
@@ -191,3 +184,6 @@ The API uses **JWT Bearer token authentication**. To access protected endpoints:
 * Swagger UI includes **JWT authentication support**
 
 ---
+
+## App Frontend
+https://github.com/bciereszynski/MultiExpensesClient
