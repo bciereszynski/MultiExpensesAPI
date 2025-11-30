@@ -63,14 +63,13 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
         return Ok(new { Token = token });
     }
 
-    private async Task<string> GenerateJwtTokenAsync(User user)
+    private Task<string> GenerateJwtTokenAsync(User user)
     {
-
         var claims = new List<Claim>
         {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email)
+        };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:SecretKey"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -81,7 +80,6 @@ public class AuthController(AppDbContext context, PasswordHasher<User> passwordH
             expires: DateTime.Now.AddHours(double.Parse(configuration["Jwt:ExpirationHours"]!)),
             signingCredentials: creds);
 
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));
     }
 }
