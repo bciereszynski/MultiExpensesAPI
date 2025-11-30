@@ -1,4 +1,5 @@
 ﻿using MultiExpensesAPI.Models.Base;
+using System.Collections.Generic;
 
 namespace MultiExpensesAPI.Models
 {
@@ -17,5 +18,7 @@ namespace MultiExpensesAPI.Models
 
         public required int GroupId { get; set; }
         public virtual Group? Group { get; set; }
+
+        public virtual ICollection<TransactionSplit> Splits { get; set; } = new List<TransactionSplit>();
     }
 }

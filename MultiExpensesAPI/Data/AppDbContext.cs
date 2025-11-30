@@ -18,18 +18,20 @@ public class AppDbContext : DbContext
 
     public DbSet<GroupInvitation> GroupInvitations { get; set; }
 
+    public DbSet<TransactionSplit> TransactionSplits { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
-        modelBuilder.Entity<User>()
-            .HasMany(u => u.Groups)
-            .WithMany(g => g.Members)
-            .UsingEntity(j => j.ToTable("UserGroups"));
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Groups)
+            .WithMany(g => g.Members)
+            .UsingEntity(j => j.ToTable("UserGroups"));
 
         modelBuilder.Entity<Transaction>()
             .HasOne(t => t.Group)
@@ -40,11 +42,17 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GroupInvitation>()
             .HasIndex(gi => gi.Token)
             .IsUnique();
-            
-        modelBuilder.Entity<GroupInvitation>()
-            .HasOne(gi => gi.Group)
-            .WithMany()
-            .HasForeignKey(gi => gi.GroupId)
+
+        modelBuilder.Entity<TransactionSplit>()
+            .HasOne(ts => ts.Transaction)
+            .WithMany(t => t.Splits)
+            .HasForeignKey(ts => ts.TransactionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TransactionSplit>()
+            .HasOne(ts => ts.User)
+            .WithMany()
+            .HasForeignKey(ts => ts.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

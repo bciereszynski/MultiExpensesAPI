@@ -21,6 +21,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
     public async Task<List<Transaction>> GetAllByGroupAsync(int groupId)
     {
         return await context.Transactions
+            .Include(t => t.Splits)
             .Where(x => x.GroupId == groupId)
             .ToListAsync();
     }
@@ -28,6 +29,7 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
     public async Task<Transaction?> GetByIdAsync(int id, int groupId)
     {
         return await context.Transactions
+            .Include(t => t.Splits)
             .FirstOrDefaultAsync(n => n.Id == id && n.GroupId == groupId);
     }
 
@@ -39,6 +41,10 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
             throw new ArgumentException("Group not found", nameof(groupId));
         }
 
+        if (transactionDto.Splits != null && transactionDto.Splits.Count > 0)
+        {
+            await ValidateSplitsAsync(transactionDto.Splits, groupId, transactionDto.Amount);
+        }
 
         var newTransaction = new Transaction
         {
@@ -55,16 +61,39 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         await context.Transactions.AddAsync(newTransaction);
         await context.SaveChangesAsync();
 
-        return newTransaction;
+        if (transactionDto.Splits != null && transactionDto.Splits.Count > 0)
+        {
+            foreach (var splitDto in transactionDto.Splits)
+            {
+                var split = new TransactionSplit
+                {
+                    TransactionId = newTransaction.Id,
+                    UserId = splitDto.UserId,
+                    Amount = splitDto.Amount,
+                    CreatedAt = DateTime.UtcNow,
+                    LastUpdatedAt = DateTime.UtcNow
+                };
+                await context.TransactionSplits.AddAsync(split);
+            }
+            await context.SaveChangesAsync();
+        }
+
+        return await GetByIdAsync(newTransaction.Id, groupId) ?? newTransaction;
     }
 
     public async Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction, int groupId)
     {
         var transactionDb = await context.Transactions
+            .Include(t => t.Splits)
             .FirstOrDefaultAsync(n => n.Id == id && n.GroupId == groupId);
         if (transactionDb == null)
         {
             return null;
+        }
+
+        if (transaction.Splits != null && transaction.Splits.Count > 0)
+        {
+            await ValidateSplitsAsync(transaction.Splits, groupId, transaction.Amount);
         }
 
         transactionDb.Type = transaction.Type;
@@ -75,6 +104,24 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         transactionDb.LastUpdatedAt = DateTime.UtcNow;
         transactionDb.UserId = transaction.UserId;
         transactionDb.GroupId = groupId;
+
+        context.TransactionSplits.RemoveRange(transactionDb.Splits);
+
+        if (transaction.Splits != null && transaction.Splits.Count > 0)
+        {
+            foreach (var splitDto in transaction.Splits)
+            {
+                var split = new TransactionSplit
+                {
+                    TransactionId = transactionDb.Id,
+                    UserId = splitDto.UserId,
+                    Amount = splitDto.Amount,
+                    CreatedAt = DateTime.UtcNow,
+                    LastUpdatedAt = DateTime.UtcNow
+                };
+                transactionDb.Splits.Add(split);
+            }
+        }
 
         context.Transactions.Update(transactionDb);
         await context.SaveChangesAsync();
@@ -108,5 +155,39 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
         return await context.Transactions
             .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "income")
             .SumAsync(t => t.Amount);
+    }
+
+    private async Task ValidateSplitsAsync(List<TransactionSplitDto> splits, int groupId, double totalAmount)
+    {
+        var userIds = splits.Select(s => s.UserId).Distinct().ToList();
+        var group = await context.Groups
+            .Include(g => g.Members)
+            .FirstOrDefaultAsync(g => g.Id == groupId);
+
+        if (group == null)
+        {
+            throw new ArgumentException("Group not found", nameof(groupId));
+        }
+
+        var groupMemberIds = group.Members.Select(m => m.Id).ToHashSet();
+        var invalidUserIds = userIds.Where(uid => !groupMemberIds.Contains(uid)).ToList();
+
+        if (invalidUserIds.Count > 0)
+        {
+            throw new ArgumentException($"Users with IDs {string.Join(", ", invalidUserIds)} are not members of this group");
+        }
+
+        var splitSum = splits.Sum(s => s.Amount);
+        var tolerance = 0.01;
+
+        if (Math.Abs(splitSum - totalAmount) > tolerance)
+        {
+            throw new ArgumentException($"Split amounts ({splitSum:F2}) must equal the transaction amount ({totalAmount:F2})");
+        }
+
+        if (splits.Any(s => s.Amount < 0))
+        {
+            throw new ArgumentException("Split amounts cannot be negative");
+        }
     }
 }

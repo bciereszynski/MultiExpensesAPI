@@ -6,4 +6,5 @@ public record PostTransactionDto(
     string Category,
     string? Description,
     DateTime CreatedAt,
-    int? UserId);
+    int? UserId,
+    List<TransactionSplitDto>? Splits);
