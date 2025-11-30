@@ -52,6 +52,7 @@ builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Conf
 builder.Services.AddScoped<ITransactionsService, TransactionsService>();
 builder.Services.AddScoped<IGroupsService, GroupsService>();
 builder.Services.AddScoped<IMembersService, MembersService>();
+builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<PasswordHasher<User>>();
 builder.Services.AddScoped<GroupMemberOnlyFilter>();
 

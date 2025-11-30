@@ -27,6 +27,10 @@ public class AppDbContext : DbContext
             .WithMany(g => g.Members)
             .UsingEntity(j => j.ToTable("UserGroups"));
 
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
         modelBuilder.Entity<Transaction>()
             .HasOne(t => t.Group)
             .WithMany(g => g.Transactions)
