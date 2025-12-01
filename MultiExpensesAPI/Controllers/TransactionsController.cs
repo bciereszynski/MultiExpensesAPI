@@ -95,11 +95,11 @@ public class TransactionsController(ITransactionsService service) : ControllerBa
         return Ok(sum);
     }
 
-    // GET api/groups/{groupId}/transactions/earnings/{memberId}
-    [HttpGet("income/{memberId}")]
-    public async Task<IActionResult> GetEarningsSum(int groupId, int memberId)
+    // GET api/groups/{groupId}/transactions/paid/{memberId}
+    [HttpGet("paid/{memberId}")]
+    public async Task<IActionResult> GetPaidSum(int groupId, int memberId)
     {
-        var sum = await service.GetIncomeByMemberAsync(groupId, memberId);
+        var sum = await service.GetPaidByMemberAsync(groupId, memberId);
         return Ok(sum);
     }
 }

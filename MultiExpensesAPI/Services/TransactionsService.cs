@@ -13,7 +13,7 @@ public interface ITransactionsService
     Task<Transaction?> UpdateAsync(int id, PostTransactionDto transaction, int groupId);
     Task<bool> DeleteAsync(int id, int groupId);
     Task<double> GetExpensesByMemberAsync(int groupId, int memberId);
-    Task<double> GetIncomeByMemberAsync(int groupId, int memberId);
+    Task<double> GetPaidByMemberAsync(int groupId, int memberId);
 }
 
 public class TransactionsService(AppDbContext context) : ITransactionsService
@@ -145,16 +145,36 @@ public class TransactionsService(AppDbContext context) : ITransactionsService
 
     public async Task<double> GetExpensesByMemberAsync(int groupId, int memberId)
     {
-        return await context.Transactions
-            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "expense")
-            .SumAsync(t => t.Amount);
+        var expenseSplits = await context.TransactionSplits
+            .Where(ts => ts.UserId == memberId 
+                && ts.Transaction!.GroupId == groupId 
+                && ts.Transaction.Type.ToLower() == "expense")
+            .SumAsync(ts => ts.Amount);
+
+        var incomeSplits = await context.TransactionSplits
+            .Where(ts => ts.UserId == memberId 
+                && ts.Transaction!.GroupId == groupId 
+                && ts.Transaction.Type.ToLower() == "income")
+            .SumAsync(ts => ts.Amount);
+
+        return expenseSplits - incomeSplits;
     }
 
-    public async Task<double> GetIncomeByMemberAsync(int groupId, int memberId)
+    public async Task<double> GetPaidByMemberAsync(int groupId, int memberId)
     {
-        return await context.Transactions
-            .Where(t => t.GroupId == groupId && t.UserId == memberId && t.Type.ToLower() == "income")
+        var expensesPaid = await context.Transactions
+            .Where(t => t.GroupId == groupId 
+                && t.UserId == memberId 
+                && t.Type.ToLower() == "expense")
             .SumAsync(t => t.Amount);
+
+        var incomeTransactions = await context.Transactions
+            .Where(t => t.GroupId == groupId 
+                && t.UserId == memberId 
+                && t.Type.ToLower() == "income")
+            .SumAsync(t => t.Amount);
+
+        return expensesPaid - incomeTransactions;
     }
 
     private async Task ValidateSplitsAsync(List<TransactionSplitDto> splits, int groupId, double totalAmount)
